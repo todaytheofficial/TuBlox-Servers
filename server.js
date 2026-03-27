@@ -18,19 +18,19 @@ const app = express();
 const server = http.createServer(app);
 
 // ═══════════════════════════════════════════════════════════════
-// RENDER.COM OPTIMIZATIONS
+// CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
 const IS_RENDER = !!process.env.RENDER;
 const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
 const RENDER_HOSTNAME = process.env.RENDER_EXTERNAL_HOSTNAME;
+const WEBSITE_URL = process.env.WEBSITE_URL || 'https://tublox.vercel.app';
 
 console.log('╔══════════════════════════════════════════════════════════╗');
-console.log('║           TuBlox Servers v1.0 — Starting...            ║');
-console.log('║         Optimized for Render.com Free Tier             ║');
+console.log('║       TuBlox Game Server v1.0 — Render Edition          ║');
 console.log('╚══════════════════════════════════════════════════════════╝');
-console.log(`[Boot] Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`[Boot] Render: ${IS_RENDER ? 'YES' : 'NO'}`);
+console.log(`[Boot] Platform: ${IS_RENDER ? 'Render' : 'Local'}`);
+console.log(`[Boot] Website: ${WEBSITE_URL}`);
 if (RENDER_URL) console.log(`[Boot] URL: ${RENDER_URL}`);
 
 // ═══════════════════════════════════════════════════════════════
@@ -68,14 +68,11 @@ class ServerAntiCheat {
         this.bannedIPs = new Set();
         this.bannedOdilIds = new Set();
         this.chatCounts = new Map();
-        
         this.onKick = null;
         this.onBan = null;
         this.onWarn = null;
         this.onCorrectPosition = null;
-        
         this.adminIds = new Set([1]);
-        
         this.startDecayTimer();
         console.log('[AntiCheat] Server AntiCheat v1.0 initialized');
     }
@@ -520,14 +517,13 @@ class ServerAntiCheat {
 const antiCheat = new ServerAntiCheat();
 
 // ═══════════════════════════════════════════════════════════════
-// KEEP ALIVE — Render Free Tier Anti-Sleep
+// KEEP ALIVE
 // ═══════════════════════════════════════════════════════════════
 
 const SELF_URL = RENDER_URL || process.env.SELF_URL;
 
 if (SELF_URL) {
-    // Ping every 14 minutes to prevent Render free tier sleep
-    const keepAliveInterval = setInterval(() => {
+    setInterval(() => {
         const https = require('https');
         const httpModule = require('http');
         const client = SELF_URL.startsWith('https') ? https : httpModule;
@@ -537,42 +533,26 @@ if (SELF_URL) {
         }).on('error', (err) => {
             console.log('[KeepAlive] Ping failed:', err.message);
         });
-    }, 14 * 60 * 1000); // 14 minutes
-
-    // Also ping more frequently during active use
-    const activeKeepAlive = setInterval(() => {
-        if (connectedClients.size > 0) {
-            const https = require('https');
-            const httpModule = require('http');
-            const client = SELF_URL.startsWith('https') ? https : httpModule;
-            
-            client.get(SELF_URL + '/api/health', () => {}).on('error', () => {});
-        }
-    }, 5 * 60 * 1000); // 5 minutes when players connected
+    }, 14 * 60 * 1000);
     
     console.log(`[KeepAlive] Active — pinging ${SELF_URL} every 14min`);
-} else {
-    console.log('[KeepAlive] No SELF_URL set, keep-alive disabled');
 }
 
 // ═══════════════════════════════════════════════════════════════
 // EXPRESS MIDDLEWARE
 // ═══════════════════════════════════════════════════════════════
 
-// Security headers (relaxed for game use)
 app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
 
-// Compression
 app.use(compression());
 
-// CORS — allow TuBlox frontend
 app.use(cors({
     origin: [
         'https://tublox.vercel.app',
-        'https://tublox.onrender.com',
+        'https://tublox-servers.onrender.com',
         'http://localhost:3000',
         'http://localhost:5500',
         /\.vercel\.app$/,
@@ -583,24 +563,15 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie']
 }));
 
-// Rate limiting
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 min
-    max: 300, // 300 requests per 15 min
+    windowMs: 15 * 60 * 1000,
+    max: 300,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many requests, slow down!' }
 });
 
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 20,
-    message: { success: false, message: 'Too many auth attempts' }
-});
-
 app.use('/api/', apiLimiter);
-app.use('/api/login', authLimiter);
-app.use('/api/register', authLimiter);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -610,19 +581,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
     etag: true
 }));
 
-// Request logging (minimal for performance)
-app.use((req, res, next) => {
-    if (req.path === '/api/health' || req.path === '/api/heartbeat') return next();
-    const start = Date.now();
-    res.on('finish', () => {
-        const duration = Date.now() - start;
-        if (duration > 1000) {
-            console.log(`[SLOW] ${req.method} ${req.path} — ${duration}ms`);
-        }
-    });
-    next();
-});
-
 // ═══════════════════════════════════════════════════════════════
 // HEALTH CHECK
 // ═══════════════════════════════════════════════════════════════
@@ -630,6 +588,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'ok',
+        platform: 'render-game-server',
         uptime: process.uptime(),
         games: gameServers.size,
         connections: connectedClients.size,
@@ -651,8 +610,8 @@ app.get('/api/health', (req, res) => {
 const wss = new WebSocket.Server({
     server,
     path: '/ws',
-    maxPayload: 16 * 1024, // 16KB max message
-    perMessageDeflate: false // Disable for lower latency
+    maxPayload: 16 * 1024,
+    perMessageDeflate: false
 });
 
 const gameServers = new Map();
@@ -778,7 +737,10 @@ function removePlayerFromGame(gameId, odilId) {
 antiCheat.onWarn = (odilId, reason) => {
     const client = connectedClients.get(odilId);
     if (client && client.ws) {
-        sendToClient(client.ws, { type: PacketType.AC_WARN, message: reason });
+        sendToClient(client.ws, {
+            type: PacketType.AC_WARN,
+            message: reason
+        });
         sendToClient(client.ws, {
             type: PacketType.CHAT_MESSAGE,
             odilId: 0,
@@ -791,7 +753,10 @@ antiCheat.onWarn = (odilId, reason) => {
 antiCheat.onKick = (odilId, reason) => {
     const client = connectedClients.get(odilId);
     if (client && client.ws) {
-        sendToClient(client.ws, { type: PacketType.AC_KICK, reason: `AntiCheat: ${reason}` });
+        sendToClient(client.ws, {
+            type: PacketType.AC_KICK,
+            reason: `AntiCheat: ${reason}`
+        });
         setTimeout(() => {
             if (client.ws && client.ws.readyState === WebSocket.OPEN) {
                 client.ws.close(1000, `AntiCheat: ${reason}`);
@@ -806,7 +771,10 @@ antiCheat.onKick = (odilId, reason) => {
 antiCheat.onBan = (odilId, reason, ip) => {
     const client = connectedClients.get(odilId);
     if (client && client.ws) {
-        sendToClient(client.ws, { type: PacketType.AC_KICK, reason: `AntiCheat BAN: ${reason}` });
+        sendToClient(client.ws, {
+            type: PacketType.AC_KICK,
+            reason: `AntiCheat BAN: ${reason}`
+        });
         setTimeout(() => {
             if (client.ws && client.ws.readyState === WebSocket.OPEN) {
                 client.ws.close(1000, `AntiCheat BAN: ${reason}`);
@@ -816,6 +784,14 @@ antiCheat.onBan = (odilId, reason, ip) => {
     if (client && client.gameId) {
         removePlayerFromGame(client.gameId, odilId);
     }
+    
+    // Save ban to database
+    Ban.create({
+        odilId,
+        ip,
+        reason,
+        bannedAt: new Date()
+    }).catch(err => console.error('[DB] Ban save error:', err));
 };
 
 antiCheat.onCorrectPosition = (odilId, position) => {
@@ -837,7 +813,9 @@ antiCheat.onCorrectPosition = (odilId, position) => {
 function getUserPresence(odilId) {
     const odilIdNum = typeof odilId === 'string' ? parseInt(odilId, 10) : odilId;
     
-    if (isNaN(odilIdNum)) return { isOnline: false, currentGame: null };
+    if (isNaN(odilIdNum)) {
+        return { isOnline: false, currentGame: null };
+    }
     
     for (const [gameId, gameServer] of gameServers.entries()) {
         const playerData = gameServer.players.get(odilIdNum);
@@ -880,7 +858,9 @@ function getUserPresence(odilId) {
 }
 
 async function enrichPresenceWithGameInfo(presence) {
-    if (!presence.currentGame || !presence.currentGame.gameId) return presence;
+    if (!presence.currentGame || !presence.currentGame.gameId) {
+        return presence;
+    }
     
     try {
         const game = await Game.findOne({ id: presence.currentGame.gameId })
@@ -917,10 +897,10 @@ wss.on('connection', (ws, req) => {
     let clientGameId = null;
     let clientUsername = null;
     let isConnected = false;
-    
+
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
-    
+
     ws.on('message', async (message) => {
         try {
             const raw = message.toString();
@@ -935,7 +915,9 @@ wss.on('connection', (ws, req) => {
             
             if (data.type !== PacketType.CONNECT_REQUEST && clientOdilId) {
                 const rateCheck = antiCheat.checkPacketRate(clientOdilId, data.type === PacketType.PLAYER_STATE);
-                if (!rateCheck.allowed) return;
+                if (!rateCheck.allowed) {
+                    return;
+                }
             }
             
             switch (data.type) {
@@ -1205,7 +1187,7 @@ wss.on('connection', (ws, req) => {
             console.error('[WS] Message error:', err);
         }
     });
-    
+
     ws.on('close', (code, reason) => {
         console.log(`[WS] Connection closed: ${clientUsername} (#${clientOdilId}), code=${code}`);
         if (clientGameId && clientOdilId && isConnected) {
@@ -1213,7 +1195,7 @@ wss.on('connection', (ws, req) => {
         }
         isConnected = false;
     });
-    
+
     ws.on('error', (err) => {
         console.error(`[WS] Error for ${clientUsername}:`, err.message);
     });
@@ -1256,41 +1238,12 @@ setInterval(() => {
 // MONGOOSE SCHEMAS
 // ═══════════════════════════════════════════════════════════════
 
-const counterSchema = new mongoose.Schema({
-    _id: String,
-    seq: { type: Number, default: 0 }
-});
-const Counter = mongoose.model('Counter', counterSchema);
-
-async function getNextUserId() {
-    const counter = await Counter.findByIdAndUpdate('userId', { $inc: { seq: 1 } }, { new: true, upsert: true });
-    return counter.seq;
-}
-
-async function getNextPostId() {
-    const counter = await Counter.findByIdAndUpdate('postId', { $inc: { seq: 1 } }, { new: true, upsert: true });
-    return counter.seq;
-}
-
-async function getNextReplyId() {
-    const counter = await Counter.findByIdAndUpdate('replyId', { $inc: { seq: 1 } }, { new: true, upsert: true });
-    return counter.seq;
-}
-
 const userSchema = new mongoose.Schema({
     odilId: { type: Number, unique: true },
-    username: { type: String, required: true, unique: true, minlength: 3, maxlength: 20, lowercase: true, trim: true },
-    password: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-    lastLogin: { type: Date, default: Date.now },
-    lastSeen: { type: Date, default: Date.now },
-    gameData: {
-        level: { type: Number, default: 1 },
-        coins: { type: Number, default: 0 },
-        playTime: { type: Number, default: 0 }
-    }
+    username: { type: String, required: true, unique: true },
+    lastSeen: { type: Date, default: Date.now }
 });
-const User = mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 const gameSchema = new mongoose.Schema({
     id: { type: String, unique: true, required: true },
@@ -1308,44 +1261,7 @@ const gameSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
 });
-const Game = mongoose.model('Game', gameSchema);
-
-const launchTokenSchema = new mongoose.Schema({
-    token: { type: String, unique: true },
-    odilId: { type: Number, required: true },
-    username: { type: String, required: true },
-    gameId: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now, expires: 300 }
-});
-const LaunchToken = mongoose.model('LaunchToken', launchTokenSchema);
-
-const forumPostSchema = new mongoose.Schema({
-    postId: { type: Number, unique: true },
-    authorId: { type: Number, required: true },
-    authorName: { type: String, required: true },
-    title: { type: String, required: true, maxlength: 100 },
-    content: { type: String, required: true, maxlength: 5000 },
-    category: { type: String, default: 'general' },
-    likes: [{ type: Number }],
-    views: { type: Number, default: 0 },
-    replies: { type: Number, default: 0 },
-    isPinned: { type: Boolean, default: false },
-    isLocked: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now }
-});
-const ForumPost = mongoose.model('ForumPost', forumPostSchema);
-
-const forumReplySchema = new mongoose.Schema({
-    replyId: { type: Number, unique: true },
-    postId: { type: Number, required: true },
-    authorId: { type: Number, required: true },
-    authorName: { type: String, required: true },
-    content: { type: String, required: true, maxlength: 2000 },
-    likes: [{ type: Number }],
-    createdAt: { type: Date, default: Date.now }
-});
-const ForumReply = mongoose.model('ForumReply', forumReplySchema);
+const Game = mongoose.models.Game || mongoose.model('Game', gameSchema);
 
 const banSchema = new mongoose.Schema({
     odilId: { type: Number },
@@ -1355,134 +1271,13 @@ const banSchema = new mongoose.Schema({
     bannedAt: { type: Date, default: Date.now },
     expiresAt: { type: Date, default: null }
 });
-const Ban = mongoose.model('Ban', banSchema);
-
-const whitelistSchema = new mongoose.Schema({
-    odilId: { type: Number, unique: true, required: true },
-    username: { type: String, required: true },
-    status: { type: String, default: 'approved', enum: ['pending', 'approved', 'rejected'] },
-    requestedAt: { type: Date, default: Date.now },
-    approvedAt: { type: Date }
-});
-const Whitelist = mongoose.model('Whitelist', whitelistSchema);
-
-// ═══════════════════════════════════════════════════════════════
-// BADGES
-// ═══════════════════════════════════════════════════════════════
-
-const BADGES = {
-    'Staff': {
-        id: 'Staff',
-        name: 'Staff',
-        description: 'TuBlox Staff Member',
-        icon: '/img/badges/Staff.svg',
-        color: '#ff4444',
-        rarity: 'legendary',
-        holders: [1, 5]
-    },
-    'TuBloxUser': {
-        id: 'TuBloxUser',
-        name: 'TuBlox User',
-        description: 'Verified TuBlox Player',
-        icon: '/img/badges/TuBloxUser.svg',
-        color: '#00c8ff',
-        rarity: 'common',
-        holders: null
-    }
-};
-
-function getUserBadges(odilId) {
-    const badges = [];
-    
-    for (const [badgeId, badge] of Object.entries(BADGES)) {
-        if (badge.holders === null) {
-            badges.push({
-                id: badge.id,
-                name: badge.name,
-                description: badge.description,
-                icon: badge.icon,
-                color: badge.color,
-                rarity: badge.rarity
-            });
-        } else if (Array.isArray(badge.holders) && badge.holders.includes(odilId)) {
-            badges.push({
-                id: badge.id,
-                name: badge.name,
-                description: badge.description,
-                icon: badge.icon,
-                color: badge.color,
-                rarity: badge.rarity
-            });
-        }
-    }
-    
-    const rarityOrder = { legendary: 0, epic: 1, rare: 2, uncommon: 3, common: 4 };
-    badges.sort((a, b) => (rarityOrder[a.rarity] || 99) - (rarityOrder[b.rarity] || 99));
-    
-    return badges;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// GAME BUILD DATA
-// ═══════════════════════════════════════════════════════════════
-
-const baseplateBuildData = {
-    objects: [
-        { type: 'cube', position: { x: 0, y: -0.5, z: 0 }, scale: { x: 100, y: 1, z: 100 }, color: { r: 0.3, g: 0.8, b: 0.3 }, isStatic: true },
-        { type: 'spawn', position: { x: 0, y: 2, z: 0 } }
-    ],
-    settings: { gravity: -20, skyColor: { r: 0.53, g: 0.81, b: 0.92 }, ambientColor: { r: 0.4, g: 0.4, b: 0.5 }, fogEnabled: false, spawnPoint: { x: 0, y: 2, z: 0 } },
-    version: 1
-};
-
-const obbyBuildData = {
-    objects: [
-        { type: 'cube', position: { x: 0, y: 0, z: 0 }, scale: { x: 8, y: 1, z: 8 }, color: { r: 0.2, g: 0.6, b: 0.2 }, isStatic: true },
-        { type: 'spawn', position: { x: 0, y: 2, z: 0 } },
-        { type: 'cube', position: { x: 0, y: 0, z: 12 }, scale: { x: 4, y: 1, z: 4 }, color: { r: 0.9, g: 0.3, b: 0.3 }, isStatic: true },
-        { type: 'cube', position: { x: 0, y: 2, z: 20 }, scale: { x: 4, y: 1, z: 4 }, color: { r: 0.9, g: 0.6, b: 0.2 }, isStatic: true },
-        { type: 'cube', position: { x: 6, y: 4, z: 20 }, scale: { x: 3, y: 1, z: 3 }, color: { r: 0.9, g: 0.9, b: 0.2 }, isStatic: true },
-        { type: 'cube', position: { x: 12, y: 6, z: 20 }, scale: { x: 3, y: 1, z: 3 }, color: { r: 0.2, g: 0.9, b: 0.2 }, isStatic: true },
-        { type: 'cube', position: { x: 12, y: 8, z: 12 }, scale: { x: 3, y: 1, z: 3 }, color: { r: 0.2, g: 0.7, b: 0.9 }, isStatic: true },
-        { type: 'cube', position: { x: 12, y: 10, z: 4 }, scale: { x: 3, y: 1, z: 3 }, color: { r: 0.5, g: 0.2, b: 0.9 }, isStatic: true },
-        { type: 'cube', position: { x: 12, y: 12, z: -4 }, scale: { x: 6, y: 1, z: 6 }, color: { r: 1.0, g: 0.84, b: 0.0 }, isStatic: true }
-    ],
-    settings: { gravity: -25, skyColor: { r: 0.4, g: 0.6, b: 0.9 }, ambientColor: { r: 0.5, g: 0.5, b: 0.6 }, fogEnabled: false, spawnPoint: { x: 0, y: 2, z: 0 } },
-    version: 1
-};
-
-const hotelBuildData = {
-    objects: [
-        { type: 'cube', position: { x: 0, y: 0, z: 0 }, scale: { x: 30, y: 0.5, z: 40 }, color: { r: 0.15, g: 0.1, b: 0.08 }, isStatic: true },
-        { type: 'cube', position: { x: 0, y: 0.26, z: 0 }, scale: { x: 12, y: 0.02, z: 20 }, color: { r: 0.6, g: 0.1, b: 0.15 }, isStatic: true },
-        { type: 'cube', position: { x: 0, y: 10, z: 0 }, scale: { x: 30, y: 0.5, z: 40 }, color: { r: 0.95, g: 0.93, b: 0.88 }, isStatic: true },
-        { type: 'cube', position: { x: -15, y: 5, z: 0 }, scale: { x: 0.5, y: 10, z: 40 }, color: { r: 0.85, g: 0.8, b: 0.7 }, isStatic: true },
-        { type: 'cube', position: { x: 15, y: 5, z: 0 }, scale: { x: 0.5, y: 10, z: 40 }, color: { r: 0.85, g: 0.8, b: 0.7 }, isStatic: true },
-        { type: 'cube', position: { x: 0, y: 5, z: -20 }, scale: { x: 30, y: 10, z: 0.5 }, color: { r: 0.85, g: 0.8, b: 0.7 }, isStatic: true },
-        { type: 'cube', position: { x: -10, y: 5, z: 20 }, scale: { x: 10, y: 10, z: 0.5 }, color: { r: 0.85, g: 0.8, b: 0.7 }, isStatic: true },
-        { type: 'cube', position: { x: 10, y: 5, z: 20 }, scale: { x: 10, y: 10, z: 0.5 }, color: { r: 0.85, g: 0.8, b: 0.7 }, isStatic: true },
-        { type: 'cube', position: { x: 0, y: 1.5, z: -15 }, scale: { x: 10, y: 3, z: 2 }, color: { r: 0.3, g: 0.2, b: 0.15 }, isStatic: true },
-        { type: 'cube', position: { x: -10, y: 0.8, z: 5 }, scale: { x: 5, y: 1.6, z: 2 }, color: { r: 0.2, g: 0.15, b: 0.4 }, isStatic: true },
-        { type: 'cube', position: { x: 10, y: 0.8, z: 5 }, scale: { x: 5, y: 1.6, z: 2 }, color: { r: 0.2, g: 0.15, b: 0.4 }, isStatic: true },
-        { type: 'spawn', position: { x: 0, y: 2, z: 15 } }
-    ],
-    settings: { gravity: -20, skyColor: { r: 0.1, g: 0.1, b: 0.15 }, ambientColor: { r: 0.6, g: 0.55, b: 0.5 }, fogEnabled: false, spawnPoint: { x: 0, y: 2, z: 15 } },
-    version: 1
-};
-
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTS
-// ═══════════════════════════════════════════════════════════════
-
-const ADMIN_IDS = [1];
-const AUTO_APPROVE = true;
+const Ban = mongoose.models.Ban || mongoose.model('Ban', banSchema);
 
 // ═══════════════════════════════════════════════════════════════
 // MONGODB CONNECTION
 // ═══════════════════════════════════════════════════════════════
 
 mongoose.connect(process.env.MONGODB_URI, {
-    // Render.com optimizations
     serverSelectionTimeoutMS: 10000,
     socketTimeoutMS: 45000,
     maxPoolSize: 10,
@@ -1497,7 +1292,6 @@ mongoose.connect(process.env.MONGODB_URI, {
         await mongoose.connection.collection('users').dropIndex('email_1'); 
     } catch (e) {}
     
-    // Load bans
     const bans = await Ban.find({});
     for (const ban of bans) {
         if (ban.expiresAt && ban.expiresAt < new Date()) continue;
@@ -1505,20 +1299,9 @@ mongoose.connect(process.env.MONGODB_URI, {
         if (ban.ip) antiCheat.bannedIPs.add(ban.ip);
     }
     console.log(`[AC] Loaded ${antiCheat.bannedOdilIds.size} banned users, ${antiCheat.bannedIPs.size} banned IPs`);
-    
-    // Create/update games
-    await Game.deleteMany({});
-    const games = [
-        { id: 'baseplate', title: 'Baseplate', description: 'A simple green baseplate. Perfect for hanging out with friends!', creator: 'Today_Idk', creatorId: 1, featured: true, category: 'sandbox', visits: 1, maxPlayers: 50, buildData: baseplateBuildData },
-        { id: 'obby', title: 'Obby', description: 'Jump through colorful platforms and reach the golden finish!', creator: 'Today_Idk', creatorId: 1, featured: true, category: 'obby', visits: 1, maxPlayers: 30, buildData: obbyBuildData },
-        { id: 'hotel', title: 'Hotel', description: 'A beautiful hotel lobby. Relax and meet new people!', creator: 'Today_Idk', creatorId: 1, featured: true, category: 'roleplay', visits: 1, maxPlayers: 40, buildData: hotelBuildData }
-    ];
-    await Game.insertMany(games);
-    console.log(`[DB] Created ${games.length} games`);
 })
 .catch(err => console.error('[DB] MongoDB connection error:', err));
 
-// Handle connection events
 mongoose.connection.on('disconnected', () => {
     console.log('[DB] MongoDB disconnected, attempting reconnect...');
 });
@@ -1528,789 +1311,77 @@ mongoose.connection.on('reconnected', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════
-// AUTH MIDDLEWARE
+// API ROUTES
 // ═══════════════════════════════════════════════════════════════
 
-const auth = async (req, res, next) => {
-    try {
-        const token = req.cookies.token;
-        if (!token) return res.redirect('/auth');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
-        if (!user) { res.clearCookie('token'); return res.redirect('/auth'); }
-        req.user = user;
-        next();
-    } catch (err) {
-        res.clearCookie('token');
-        res.redirect('/auth');
+// Presence API - Called by Vercel website
+app.get('/api/presence/:id', (req, res) => {
+    const odilId = parseInt(req.params.id);
+    if (isNaN(odilId)) {
+        return res.json({ success: false, isOnline: false, currentGame: null });
     }
-};
-
-const authAPI = async (req, res, next) => {
-    try {
-        const token = req.cookies.token;
-        if (!token) return res.status(401).json({ success: false, message: 'Not authorized' });
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
-        if (!user) { res.clearCookie('token'); return res.status(401).json({ success: false, message: 'Not authorized' }); }
-        req.user = user;
-        onlineSessions.set(user.odilId, { lastActivity: Date.now() });
-        next();
-    } catch (err) {
-        res.clearCookie('token');
-        res.status(401).json({ success: false, message: 'Not authorized' });
-    }
-};
-
-const adminAPI = async (req, res, next) => {
-    await authAPI(req, res, () => {
-        if (!antiCheat.adminIds.has(req.user.odilId)) {
-            return res.status(403).json({ success: false, message: 'Admin access required' });
-        }
-        next();
+    
+    const presence = getUserPresence(odilId);
+    res.json({
+        success: true,
+        isOnline: presence.isOnline,
+        currentGame: presence.currentGame
     });
-};
-
-// ═══════════════════════════════════════════════════════════════
-// PAGES
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/', (req, res) => {
-    try {
-        const token = req.cookies.token;
-        if (token && jwt.verify(token, process.env.JWT_SECRET)) return res.redirect('/home');
-    } catch (e) { res.clearCookie('token'); }
-    res.sendFile(path.join(__dirname, 'pages', 'landing.html'));
 });
 
-app.get('/auth', (req, res) => {
-    try {
-        const token = req.cookies.token;
-        if (token && jwt.verify(token, process.env.JWT_SECRET)) return res.redirect('/home');
-    } catch (e) { res.clearCookie('token'); }
-    res.sendFile(path.join(__dirname, 'pages', 'auth.html'));
-});
-
-app.get('/home', auth, (req, res) => res.sendFile(path.join(__dirname, 'pages', 'home.html')));
-app.get('/games', auth, (req, res) => res.sendFile(path.join(__dirname, 'pages', 'games.html')));
-app.get('/game/:id', auth, (req, res) => res.sendFile(path.join(__dirname, 'pages', 'game.html')));
-app.get('/users', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'users.html')));
-app.get('/user/:id', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'profile.html')));
-app.get('/TuForums', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'forum.html')));
-app.get('/TuForums/:ownerId', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'forum-user.html')));
-app.get('/TuForums/:ownerId/:postId', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'forum-post.html')));
-app.get('/whitelist', (req, res) => res.sendFile(path.join(__dirname, 'pages', 'whitelist.html')));
-
-// ═══════════════════════════════════════════════════════════════
-// API - WHITELIST
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/whitelist/count', async (req, res) => {
-    try {
-        const count = await Whitelist.countDocuments({ status: 'approved' });
-        res.json({ success: true, count });
-    } catch (err) {
-        res.status(500).json({ success: false });
+// Game servers list
+app.get('/api/game/:id/servers', (req, res) => {
+    const game = gameServers.get(req.params.id);
+    if (!game || game.players.size === 0) {
+        return res.json({ success: true, servers: [] });
     }
+    
+    const hostPlayer = game.players.get(game.hostOdilId);
+    res.json({
+        success: true,
+        servers: [{
+            id: req.params.id,
+            name: `${hostPlayer?.username || 'Unknown'}'s Server`,
+            players: game.players.size,
+            maxPlayers: 50,
+            hostOdilId: game.hostOdilId
+        }]
+    });
 });
 
-app.get('/api/whitelist/me', authAPI, async (req, res) => {
-    try {
-        const entry = await Whitelist.findOne({ odilId: req.user.odilId });
-        res.json({
-            success: true,
-            whitelisted: entry?.status === 'approved',
-            pending: entry?.status === 'pending',
-            status: entry?.status || null
-        });
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
-});
-
-app.post('/api/whitelist/request', authAPI, async (req, res) => {
-    try {
-        const existing = await Whitelist.findOne({ odilId: req.user.odilId });
-        
-        if (existing) {
-            if (existing.status === 'approved') return res.json({ success: true, whitelisted: true, autoApproved: false });
-            if (existing.status === 'pending') return res.json({ success: true, pending: true });
-            if (existing.status === 'rejected') return res.status(400).json({ success: false, message: 'Request was rejected' });
+// All active games
+app.get('/api/servers', (req, res) => {
+    const servers = [];
+    gameServers.forEach((game, gameId) => {
+        if (game.players.size > 0) {
+            const hostPlayer = game.players.get(game.hostOdilId);
+            servers.push({
+                gameId,
+                players: game.players.size,
+                hostUsername: hostPlayer?.username || 'Unknown',
+                createdAt: game.createdAt
+            });
         }
-        
-        const entry = new Whitelist({
-            odilId: req.user.odilId,
-            username: req.user.username,
-            status: AUTO_APPROVE ? 'approved' : 'pending',
-            approvedAt: AUTO_APPROVE ? new Date() : null
-        });
-        await entry.save();
-        
-        console.log(`[Whitelist] ${AUTO_APPROVE ? 'Auto-approved' : 'Request'}: #${req.user.odilId} (${req.user.username})`);
-        
-        res.json({ 
-            success: true, 
-            autoApproved: AUTO_APPROVE,
-            whitelisted: AUTO_APPROVE,
-            pending: !AUTO_APPROVE
-        });
-    } catch (err) {
-        console.error('[Whitelist] Request error:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
+    });
+    res.json({ 
+        success: true, 
+        servers, 
+        totalPlayers: connectedClients.size,
+        totalGames: gameServers.size
+    });
 });
 
-app.get('/api/whitelist/check/:id', async (req, res) => {
-    try {
-        const odilId = parseInt(req.params.id);
-        const entry = await Whitelist.findOne({ odilId, status: 'approved' });
-        res.json({ success: true, whitelisted: !!entry });
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
-});
-
-app.get('/api/whitelist', authAPI, async (req, res) => {
-    try {
-        if (!ADMIN_IDS.includes(req.user.odilId)) return res.status(403).json({ success: false, message: 'Admin only' });
-        const { status } = req.query;
-        const query = status ? { status } : {};
-        const entries = await Whitelist.find(query).sort({ requestedAt: -1 });
-        res.json({ success: true, entries, count: entries.length });
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
-});
-
-app.patch('/api/whitelist/:id', authAPI, async (req, res) => {
-    try {
-        if (!ADMIN_IDS.includes(req.user.odilId)) return res.status(403).json({ success: false, message: 'Admin only' });
-        
-        const odilId = parseInt(req.params.id);
-        const { status } = req.body;
-        
-        if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ success: false, message: 'Invalid status' });
-        
-        const entry = await Whitelist.findOneAndUpdate(
-            { odilId },
-            { status, approvedAt: status === 'approved' ? new Date() : null },
-            { new: true }
-        );
-        
-        if (!entry) return res.status(404).json({ success: false, message: 'Not found' });
-        
-        res.json({ success: true, entry });
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
-});
-
-app.delete('/api/whitelist/:id', authAPI, async (req, res) => {
-    try {
-        if (!ADMIN_IDS.includes(req.user.odilId)) return res.status(403).json({ success: false, message: 'Admin only' });
-        
-        const odilId = parseInt(req.params.id);
-        const entry = await Whitelist.findOneAndDelete({ odilId });
-        if (!entry) return res.status(404).json({ success: false, message: 'Not found' });
-        
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false });
-    }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - ANTICHEAT ADMIN
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/admin/ac/stats', adminAPI, (req, res) => {
+// AntiCheat stats (admin endpoint - add auth in production!)
+app.get('/api/admin/ac/stats', (req, res) => {
     const serverStats = antiCheat.getServerStats();
     const playerStats = [];
     antiCheat.players.forEach((player, odilId) => {
         playerStats.push(antiCheat.getStats(odilId));
     });
-    res.json({ success: true, server: serverStats, players: playerStats });
-});
-
-app.post('/api/admin/ac/kick', adminAPI, async (req, res) => {
-    const { odilId, reason } = req.body;
-    if (!odilId) return res.status(400).json({ success: false, message: 'odilId required' });
-    antiCheat.kickPlayer(odilId, reason || 'Kicked by admin');
-    res.json({ success: true });
-});
-
-app.post('/api/admin/ac/ban', adminAPI, async (req, res) => {
-    const { odilId, reason, duration } = req.body;
-    if (!odilId) return res.status(400).json({ success: false, message: 'odilId required' });
-    
-    const player = antiCheat.players.get(odilId);
-    const ip = player?.ip;
-    
-    antiCheat.banPlayer(odilId, reason || 'Banned by admin');
-    
-    const ban = new Ban({
-        odilId,
-        ip,
-        reason: reason || 'Banned by admin',
-        bannedBy: req.user.odilId,
-        expiresAt: duration ? new Date(Date.now() + duration * 1000) : null
-    });
-    await ban.save();
-    
-    res.json({ success: true });
-});
-
-app.post('/api/admin/ac/unban', adminAPI, async (req, res) => {
-    const { odilId, ip } = req.body;
-    
-    if (odilId) {
-        antiCheat.unbanPlayer(odilId);
-        await Ban.deleteMany({ odilId });
-    }
-    if (ip) {
-        antiCheat.unbanIP(ip);
-        await Ban.deleteMany({ ip });
-    }
-    
-    res.json({ success: true });
-});
-
-app.post('/api/admin/ac/freeze', adminAPI, (req, res) => {
-    const { odilId, freeze } = req.body;
-    if (!odilId) return res.status(400).json({ success: false, message: 'odilId required' });
-    antiCheat.freezePlayer(odilId, freeze !== false);
-    res.json({ success: true });
-});
-
-app.post('/api/admin/ac/reset', adminAPI, (req, res) => {
-    const { odilId } = req.body;
-    if (!odilId) return res.status(400).json({ success: false, message: 'odilId required' });
-    antiCheat.resetPlayer(odilId);
-    res.json({ success: true });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - DEBUG
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/debug/presence/:id', async (req, res) => {
-    const odilId = parseInt(req.params.id);
-    const sessions = [];
-    for (const [id, s] of onlineSessions.entries()) {
-        sessions.push({ odilId: id, lastActivity: s.lastActivity, ageSeconds: Math.floor((Date.now() - s.lastActivity) / 1000) });
-    }
-    const presence = getUserPresence(odilId);
-    const enriched = await enrichPresenceWithGameInfo({ ...presence });
-    res.json({ requestedOdilId: odilId, onlineSessionsCount: onlineSessions.size, onlineSessions: sessions, presence, enrichedPresence: enriched });
-});
-
-app.post('/api/heartbeat', authAPI, (req, res) => {
-    res.json({ success: true, timestamp: Date.now() });
-});
-
-app.get('/api/debug/ws', (req, res) => {
-    const wsClients = [];
-    wss.clients.forEach((ws, i) => {
-        wsClients.push({ index: i, readyState: ws.readyState, isAlive: ws.isAlive });
-    });
-    res.json({ wssClientsCount: wss.clients.size, wsClients, connectedClientsCount: connectedClients.size, gameServersCount: gameServers.size });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - USER
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/user', authAPI, (req, res) => {
-    const presence = getUserPresence(req.user.odilId);
-    const badges = getUserBadges(req.user.odilId);
-    
     res.json({ 
         success: true, 
-        user: { 
-            id: req.user._id, 
-            odilId: req.user.odilId, 
-            username: req.user.username, 
-            createdAt: req.user.createdAt,
-            lastSeen: req.user.lastSeen,
-            isOnline: presence.isOnline,
-            currentGame: presence.currentGame,
-            gameData: req.user.gameData,
-            isAdmin: antiCheat.adminIds.has(req.user.odilId),
-            badges: badges
-        } 
-    });
-});
-
-app.get('/api/users', async (req, res) => {
-    try {
-        const users = await User.find().select('odilId username gameData createdAt lastSeen').sort({ createdAt: -1 }).limit(100);
-        const usersWithPresence = users.map(u => {
-            const presence = getUserPresence(u.odilId);
-            return { ...u.toObject(), isOnline: presence.isOnline, currentGame: presence.currentGame };
-        });
-        usersWithPresence.sort((a, b) => {
-            const aScore = a.currentGame ? 2 : (a.isOnline ? 1 : 0);
-            const bScore = b.currentGame ? 2 : (b.isOnline ? 1 : 0);
-            return bScore - aScore;
-        });
-        res.json({ success: true, users: usersWithPresence });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.get('/api/user/:id', async (req, res) => {
-    try {
-        const odilId = parseInt(req.params.id);
-        if (isNaN(odilId)) return res.status(400).json({ success: false, message: 'Invalid user ID' });
-        
-        const user = await User.findOne({ odilId }).select('odilId username gameData createdAt lastSeen lastLogin');
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-        
-        const presence = getUserPresence(odilId);
-        let enrichedPresence = { ...presence };
-        if (presence.currentGame) {
-            enrichedPresence = await enrichPresenceWithGameInfo(enrichedPresence);
-        }
-        
-        const badges = getUserBadges(odilId);
-        
-        res.json({ 
-            success: true, 
-            user: {
-                odilId: user.odilId,
-                username: user.username,
-                gameData: user.gameData,
-                createdAt: user.createdAt,
-                isOnline: enrichedPresence.isOnline,
-                currentGame: enrichedPresence.currentGame,
-                lastSeen: enrichedPresence.isOnline ? null : (user.lastSeen || user.lastLogin || user.createdAt),
-                isAdmin: antiCheat.adminIds.has(odilId),
-                badges: badges
-            }
-        });
-    } catch (err) { 
-        console.error('[API] User error:', err);
-        res.status(500).json({ success: false, message: 'Server error' }); 
-    }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - BADGES
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/badges', (req, res) => {
-    const allBadges = Object.values(BADGES).map(b => ({
-        id: b.id,
-        name: b.name,
-        description: b.description,
-        icon: b.icon,
-        color: b.color,
-        rarity: b.rarity,
-        isExclusive: b.holders !== null
-    }));
-    res.json({ success: true, badges: allBadges });
-});
-
-app.get('/api/user/:id/badges', async (req, res) => {
-    try {
-        const odilId = parseInt(req.params.id);
-        if (isNaN(odilId)) return res.status(400).json({ success: false, message: 'Invalid user ID' });
-        
-        const user = await User.findOne({ odilId }).select('odilId username');
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-        
-        const badges = getUserBadges(odilId);
-        res.json({ success: true, badges, username: user.username, odilId: user.odilId });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - AUTH
-// ═══════════════════════════════════════════════════════════════
-
-app.post('/api/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ success: false, message: 'All fields required' });
-        
-        const cleanUsername = username.toLowerCase().trim();
-        if (cleanUsername.length < 3 || cleanUsername.length > 20) return res.status(400).json({ success: false, message: 'Username must be 3-20 characters' });
-        if (!/^[a-z0-9_]+$/.test(cleanUsername)) return res.status(400).json({ success: false, message: 'Username can only contain letters, numbers and underscore' });
-        if (password.length < 6) return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
-        
-        const exists = await User.findOne({ username: cleanUsername });
-        if (exists) return res.status(400).json({ success: false, message: 'Username already taken' });
-        
-        const odilId = await getNextUserId();
-        const hash = await bcrypt.hash(password, 12);
-        const user = new User({ username: cleanUsername, password: hash, odilId, lastSeen: new Date() });
-        await user.save();
-        
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        res.cookie('token', token, { 
-            httpOnly: true, 
-            maxAge: 7 * 24 * 60 * 60 * 1000, 
-            sameSite: IS_RENDER ? 'none' : 'strict',
-            secure: IS_RENDER
-        });
-        res.json({ success: true, odilId });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ success: false, message: 'All fields required' });
-        
-        const cleanUsername = username.toLowerCase().trim();
-        const user = await User.findOne({ username: cleanUsername });
-        if (!user) return res.status(400).json({ success: false, message: 'Invalid username or password' });
-        
-        if (antiCheat.bannedOdilIds.has(user.odilId)) {
-            return res.status(403).json({ success: false, message: 'Your account is banned' });
-        }
-        
-        const valid = await bcrypt.compare(password, user.password);
-        if (!valid) return res.status(400).json({ success: false, message: 'Invalid username or password' });
-        
-        user.lastLogin = new Date();
-        user.lastSeen = new Date();
-        await user.save();
-        
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-        res.cookie('token', token, { 
-            httpOnly: true, 
-            maxAge: 7 * 24 * 60 * 60 * 1000, 
-            sameSite: IS_RENDER ? 'none' : 'strict',
-            secure: IS_RENDER
-        });
-        res.json({ success: true });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/logout', async (req, res) => {
-    try {
-        const token = req.cookies.token;
-        if (token) {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            await User.findByIdAndUpdate(decoded.id, { lastSeen: new Date() });
-        }
-    } catch (e) {}
-    res.clearCookie('token');
-    res.json({ success: true });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - GAMES
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/games', async (req, res) => {
-    try {
-        const { featured, category, page = 1, limit = 3 } = req.query;
-        const pageNum = Math.max(1, parseInt(page) || 1);
-        const limitNum = Math.min(12, Math.max(1, parseInt(limit) || 3));
-        const skip = (pageNum - 1) * limitNum;
-        
-        let query = {};
-        if (featured === 'true') query.featured = true;
-        if (category && category !== 'all') query.category = category;
-        
-        const totalGames = await Game.countDocuments(query);
-        const totalPages = Math.ceil(totalGames / limitNum);
-        
-        const games = await Game.find(query).select('-buildData').sort({ featured: -1, visits: -1 }).skip(skip).limit(limitNum);
-        
-        const gamesWithPlayers = games.map(g => {
-            const gameServer = gameServers.get(g.id);
-            return { ...g.toObject(), activePlayers: gameServer ? gameServer.players.size : 0 };
-        });
-        
-        res.json({ success: true, games: gamesWithPlayers, pagination: { currentPage: pageNum, totalPages, totalGames, gamesPerPage: limitNum, hasNextPage: pageNum < totalPages, hasPrevPage: pageNum > 1 } });
-    } catch (err) {
-        console.error('[API] Games error:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.get('/api/game/:id', async (req, res) => {
-    try {
-        const game = await Game.findOne({ id: req.params.id }).select('-buildData');
-        if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
-        const gameServer = gameServers.get(req.params.id);
-        res.json({ success: true, game: { ...game.toObject(), activePlayers: gameServer ? gameServer.players.size : 0 } });
-    } catch (err) { res.status(500).json({ success: false, message: 'Server error' }); }
-});
-
-app.get('/api/game/:id/servers', async (req, res) => {
-    try {
-        const game = gameServers.get(req.params.id);
-        if (!game || game.players.size === 0) return res.json({ success: true, servers: [] });
-        const hostPlayer = game.players.get(game.hostOdilId);
-        res.json({ success: true, servers: [{ id: req.params.id, name: `${hostPlayer?.username || 'Unknown'}'s Server`, players: game.players.size, maxPlayers: 50, hostOdilId: game.hostOdilId }] });
-    } catch (err) { res.status(500).json({ success: false, message: 'Server error' }); }
-});
-
-app.post('/api/game/launch', authAPI, async (req, res) => {
-    try {
-        const { gameId } = req.body;
-        const game = await Game.findOne({ id: gameId });
-        if (!game) return res.status(404).json({ success: false, message: 'Game not found' });
-        
-        if (antiCheat.bannedOdilIds.has(req.user.odilId)) {
-            return res.status(403).json({ success: false, message: 'You are banned from playing' });
-        }
-        
-        game.visits += 1;
-        await game.save();
-        
-        const launchToken = crypto.randomBytes(32).toString('hex');
-        await LaunchToken.create({ token: launchToken, odilId: req.user.odilId, username: req.user.username, gameId: game.id });
-        
-        // Use Render hostname
-        const wsHost = RENDER_HOSTNAME || process.env.WS_HOST || 'tublox-servers.onrender.com';
-        res.json({ success: true, token: launchToken, wsHost, wsPort: 443, gameId: game.id });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.get('/api/game/validate/:token', async (req, res) => {
-    try {
-        const launchData = await LaunchToken.findOne({ token: req.params.token });
-        if (!launchData) return res.status(404).json({ success: false, message: 'Invalid or expired token' });
-        
-        if (antiCheat.bannedOdilIds.has(launchData.odilId)) {
-            await LaunchToken.deleteOne({ token: req.params.token });
-            return res.status(403).json({ success: false, message: 'You are banned' });
-        }
-        
-        const game = await Game.findOne({ id: launchData.gameId });
-        await LaunchToken.deleteOne({ token: req.params.token });
-        
-        const wsHost = RENDER_HOSTNAME || process.env.WS_HOST || 'tublox-servers.onrender.com';
-        res.json({ 
-            success: true, 
-            odilId: launchData.odilId, 
-            username: launchData.username, 
-            gameId: launchData.gameId, 
-            wsHost, 
-            wsPort: 443, 
-            buildData: game?.buildData || baseplateBuildData,
-            gameName: game?.title || launchData.gameId,
-            creatorName: game?.creator || 'Unknown'
-        });
-    } catch (err) {
-        console.error('[Validate] Error:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - FORUM
-// ═══════════════════════════════════════════════════════════════
-
-const FORUM_CATEGORIES = [
-    { id: 'general', name: 'General', description: 'General discussion' },
-    { id: 'games', name: 'Games', description: 'Talk about games' },
-    { id: 'creations', name: 'Creations', description: 'Share your creations' },
-    { id: 'help', name: 'Help', description: 'Get help from community' },
-    { id: 'suggestions', name: 'Suggestions', description: 'Suggest new features' },
-    { id: 'offtopic', name: 'Off-Topic', description: 'Random discussions' }
-];
-
-app.get('/api/forum/categories', (req, res) => {
-    res.json({ success: true, categories: FORUM_CATEGORIES });
-});
-
-app.get('/api/forum/posts', async (req, res) => {
-    try {
-        const { page = 1, limit = 15, category, sort = 'newest', search } = req.query;
-        const pageNum = Math.max(1, parseInt(page) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 15));
-        const skip = (pageNum - 1) * limitNum;
-        
-        let query = {};
-        if (category && category !== 'all') query.category = category;
-        if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { content: { $regex: search, $options: 'i' } }];
-        
-        let sortOption = { isPinned: -1 };
-        switch (sort) {
-            case 'newest': sortOption.createdAt = -1; break;
-            case 'oldest': sortOption.createdAt = 1; break;
-            case 'popular': sortOption.views = -1; break;
-            case 'mostliked': sortOption = { isPinned: -1, likes: -1 }; break;
-            case 'mostreplies': sortOption.replies = -1; break;
-            default: sortOption.createdAt = -1;
-        }
-        
-        const totalPosts = await ForumPost.countDocuments(query);
-        const totalPages = Math.ceil(totalPosts / limitNum);
-        const posts = await ForumPost.find(query).sort(sortOption).skip(skip).limit(limitNum).lean();
-        
-        res.json({ success: true, posts, pagination: { currentPage: pageNum, totalPages, totalPosts, hasNextPage: pageNum < totalPages, hasPrevPage: pageNum > 1 } });
-    } catch (err) {
-        console.error('[Forum] Get posts error:', err);
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.get('/api/forum/user/:ownerId/posts', async (req, res) => {
-    try {
-        const { page = 1, limit = 15 } = req.query;
-        const pageNum = Math.max(1, parseInt(page) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 15));
-        const skip = (pageNum - 1) * limitNum;
-        const authorId = parseInt(req.params.ownerId);
-        
-        const user = await User.findOne({ odilId: authorId }).select('username odilId');
-        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-        
-        const totalPosts = await ForumPost.countDocuments({ authorId });
-        const totalPages = Math.ceil(totalPosts / limitNum);
-        const posts = await ForumPost.find({ authorId }).sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
-        
-        res.json({ success: true, user: { username: user.username, odilId: user.odilId }, posts, pagination: { currentPage: pageNum, totalPages, totalPosts, hasNextPage: pageNum < totalPages, hasPrevPage: pageNum > 1 } });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.get('/api/forum/post/:ownerId/:postId', async (req, res) => {
-    try {
-        const post = await ForumPost.findOne({ postId: parseInt(req.params.postId), authorId: parseInt(req.params.ownerId) });
-        if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
-        
-        post.views += 1;
-        await post.save();
-        
-        const replies = await ForumReply.find({ postId: post.postId }).sort({ createdAt: 1 }).lean();
-        res.json({ success: true, post, replies });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/forum/posts', authAPI, async (req, res) => {
-    try {
-        if (antiCheat.bannedOdilIds.has(req.user.odilId)) return res.status(403).json({ success: false, message: 'You are banned' });
-        
-        const { title, content, category } = req.body;
-        if (!title || !content) return res.status(400).json({ success: false, message: 'Title and content required' });
-        if (title.length > 100) return res.status(400).json({ success: false, message: 'Title too long (max 100)' });
-        if (content.length > 5000) return res.status(400).json({ success: false, message: 'Content too long (max 5000)' });
-        
-        const validCategory = FORUM_CATEGORIES.find(c => c.id === category);
-        const postId = await getNextPostId();
-        
-        const post = new ForumPost({ postId, authorId: req.user.odilId, authorName: req.user.username, title: title.trim(), content: content.trim(), category: validCategory ? category : 'general' });
-        await post.save();
-        
-        res.json({ success: true, post, url: `/TuForums/${req.user.odilId}/${postId}` });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/forum/post/:postId/reply', authAPI, async (req, res) => {
-    try {
-        if (antiCheat.bannedOdilIds.has(req.user.odilId)) return res.status(403).json({ success: false, message: 'You are banned' });
-        
-        const { content } = req.body;
-        if (!content || content.trim().length === 0) return res.status(400).json({ success: false, message: 'Content required' });
-        if (content.length > 2000) return res.status(400).json({ success: false, message: 'Reply too long (max 2000)' });
-        
-        const post = await ForumPost.findOne({ postId: parseInt(req.params.postId) });
-        if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
-        if (post.isLocked) return res.status(403).json({ success: false, message: 'Post is locked' });
-        
-        const replyId = await getNextReplyId();
-        const reply = new ForumReply({ replyId, postId: post.postId, authorId: req.user.odilId, authorName: req.user.username, content: content.trim() });
-        await reply.save();
-        
-        post.replies += 1;
-        post.updatedAt = new Date();
-        await post.save();
-        
-        res.json({ success: true, reply });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/forum/post/:postId/like', authAPI, async (req, res) => {
-    try {
-        const post = await ForumPost.findOne({ postId: parseInt(req.params.postId) });
-        if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
-        
-        const userId = req.user.odilId;
-        const hasLiked = post.likes.includes(userId);
-        
-        if (hasLiked) post.likes = post.likes.filter(id => id !== userId);
-        else post.likes.push(userId);
-        
-        await post.save();
-        res.json({ success: true, liked: !hasLiked, likesCount: post.likes.length });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.post('/api/forum/reply/:replyId/like', authAPI, async (req, res) => {
-    try {
-        const reply = await ForumReply.findOne({ replyId: parseInt(req.params.replyId) });
-        if (!reply) return res.status(404).json({ success: false, message: 'Reply not found' });
-        
-        const userId = req.user.odilId;
-        const hasLiked = reply.likes.includes(userId);
-        
-        if (hasLiked) reply.likes = reply.likes.filter(id => id !== userId);
-        else reply.likes.push(userId);
-        
-        await reply.save();
-        res.json({ success: true, liked: !hasLiked, likesCount: reply.likes.length });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-app.delete('/api/forum/post/:postId', authAPI, async (req, res) => {
-    try {
-        const post = await ForumPost.findOne({ postId: parseInt(req.params.postId) });
-        if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
-        
-        if (post.authorId !== req.user.odilId && !antiCheat.adminIds.has(req.user.odilId)) {
-            return res.status(403).json({ success: false, message: 'Not authorized' });
-        }
-        
-        await ForumReply.deleteMany({ postId: post.postId });
-        await post.deleteOne();
-        
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Server error' });
-    }
-});
-
-// ═══════════════════════════════════════════════════════════════
-// API - VERSION
-// ═══════════════════════════════════════════════════════════════
-
-app.get('/api/version', (req, res) => {
-    const serverUrl = RENDER_URL || 'https://tublox-servers.onrender.com';
-    res.json({
-        version: "0.5.1",
-        downloadUrl: `${serverUrl}/download/TuClient.zip`,
-        message: "Patch 0.5.1 - Fix"
+        server: serverStats, 
+        players: playerStats 
     });
 });
 
@@ -2339,7 +1410,6 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
-// Catch-all for unmatched routes
 app.use((req, res) => {
     res.status(404).json({ success: false, message: 'Not found' });
 });
@@ -2351,7 +1421,6 @@ app.use((req, res) => {
 process.on('SIGTERM', async () => {
     console.log('[Server] SIGTERM received, shutting down gracefully...');
     
-    // Notify all connected players
     connectedClients.forEach((client, odilId) => {
         if (client.ws && client.ws.readyState === WebSocket.OPEN) {
             sendToClient(client.ws, {
@@ -2364,17 +1433,14 @@ process.on('SIGTERM', async () => {
         }
     });
     
-    // Close WebSocket server
     wss.close(() => {
         console.log('[WS] WebSocket server closed');
     });
     
-    // Close HTTP server
     server.close(() => {
         console.log('[Server] HTTP server closed');
     });
     
-    // Close MongoDB
     await mongoose.connection.close();
     console.log('[DB] MongoDB connection closed');
     
@@ -2387,7 +1453,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (err) => {
     console.error('[Server] Uncaught Exception:', err);
-    // Don't exit on Render, let it recover
     if (!IS_RENDER) process.exit(1);
 });
 
@@ -2398,7 +1463,7 @@ process.on('uncaughtException', (err) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
     console.log('╔══════════════════════════════════════════════════════════╗');
-    console.log(`║  TuBlox Server running on port ${PORT}                    ║`);
+    console.log(`║  TuBlox Game Server running on port ${PORT}               ║`);
     console.log(`║  WebSocket path: /ws                                    ║`);
     console.log(`║  AntiCheat: ACTIVE                                      ║`);
     console.log(`║  Keep-Alive: ${SELF_URL ? 'ACTIVE' : 'DISABLED'}                                    ║`);
