@@ -1401,6 +1401,13 @@ app.get('/download/TuClient.zip', (req, res) => {
     res.download(filePath, 'TuClient.zip');
 });
 
+app.get('/download/TuStudio.zip', (req, res) => {
+    const filePath = path.join(__dirname, 'public', 'download', 'TuStudio.zip');
+    if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+    res.download(filePath, 'TuStudio.zip');
+});
+
+
 // ═══════════════════════════════════════════════════════════════
 // ERROR HANDLER
 // ═══════════════════════════════════════════════════════════════
