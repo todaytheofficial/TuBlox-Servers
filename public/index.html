@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TuBlox Servers</title>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <style>
+        @import url('https://api.fontshare.com/v2/css?f[]=general-sans@700,600,500,400&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #000;
+            --bg-card: #0a0a0a;
+            --bg-elevated: #111;
+            --card: #0a0a0a;
+            --border: #1a1a1a;
+            --border-light: #2a2a2a;
+            --border-hover: #3a3a3a;
+            --white: #fff;
+            --gray: #666;
+            --gray-dark: #444;
+            --gray-muted: #222;
+            --radius: 10px;
+            --radius-lg: 14px;
+            --radius-xl: 18px;
+            --accent: #fff;
+            --accent-dim: rgba(255,255,255,0.06);
+            --green: #fff;
+            --green-dim: rgba(255,255,255,0.06);
+            --blue: #fff;
+            --blue-dim: rgba(255,255,255,0.06);
+            --amber: #fff;
+            --red: #fff;
+            --red-dim: rgba(255,255,255,0.06);
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.6);
+            --shadow-md: 0 8px 32px rgba(0,0,0,0.7);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.8);
+            --transition-fast: 0.15s ease;
+            --transition: 0.2s ease;
+            --transition-slow: 0.35s ease;
+        }
+
+        body {
+            font-family: 'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--white);
+            line-height: 1.5;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        ::selection {
+            background: var(--white);
+            color: var(--bg);
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Sora', sans-serif;
+            font-weight: 600;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1a1a1a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2a2a2a; }
+
+        /* ============================================
+           LAYOUT
+           ============================================ */
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 0 24px;
+            width: 100%;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 80px 0 60px;
+        }
+
+        /* ============================================
+           HEADER
+           ============================================ */
+
+        .header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+
+        .logo-icon {
+            width: 42px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--white);
+            border-radius: 10px;
+        }
+
+        .logo-icon svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--bg);
+        }
+
+        .logo-text {
+            font-family: 'Sora', sans-serif;
+            font-size: 23px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: var(--white);
+        }
+
+        .header-sub {
+            font-size: 14px;
+            color: var(--gray);
+            font-weight: 400;
+        }
+
+        /* ============================================
+           STATUS INDICATOR
+           ============================================ */
+
+        .status-banner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: border-color var(--transition);
+        }
+
+        .status-banner:hover {
+            border-color: var(--border-light);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--gray-dark);
+            flex-shrink: 0;
+            transition: background 0.3s ease;
+        }
+
+        .status-dot.online {
+            background: var(--white);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .status-dot.loading {
+            background: var(--gray);
+            animation: pulse-glow 1s ease-in-out infinite;
+        }
+
+        .status-dot.offline {
+            background: var(--gray-dark);
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--white);
+        }
+
+        .status-text.muted {
+            color: var(--gray);
+        }
+
+        /* ============================================
+           STATS GRID
+           ============================================ */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 20px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            transition: border-color var(--transition), transform var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--border-light);
+            transform: translateY(-2px);
+        }
+
+        .stat-value {
+            font-family: 'Sora', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--white);
+            line-height: 1;
+        }
+
+        .stat-value.loading {
+            color: var(--gray-dark);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--gray);
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           CARDS
+           ============================================ */
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 12px;
+            transition: border-color var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--border-light);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-header-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .card-header-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--gray);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .card-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--white);
+            letter-spacing: -0.2px;
+        }
+
+        .card-body {
+            padding: 0;
+        }
+
+        /* ============================================
+           INFO ROWS
+           ============================================ */
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            transition: background var(--transition);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-row:hover {
+            background: rgba(255,255,255,0.015);
+        }
+
+        .info-label {
+            font-size: 13px;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-label svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--gray-dark);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--white);
+        }
+
+        .info-value.online {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-value.muted {
+            color: var(--gray);
+        }
+
+        .info-value .dot-sm {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--white);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .info-value .dot-sm.off {
+            background: var(--gray-dark);
+            animation: none;
+        }
+
+        /* ============================================
+           GAME ITEMS
+           ============================================ */
+
+        .game-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+            transition: background var(--transition);
+        }
+
+        .game-item:last-child {
+            border-bottom: none;
+        }
+
+        .game-item:hover {
+            background: rgba(255,255,255,0.015);
+        }
+
+        .game-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .game-icon {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            flex-shrink: 0;
+        }
+
+        .game-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: var(--gray);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .game-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--white);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .game-players {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .game-players .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--white);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        .game-players .dot.idle {
+            background: var(--gray-dark);
+            animation: none;
+        }
+
+        .games-empty {
+            padding: 32px 18px;
+            text-align: center;
+            color: var(--gray);
+            font-size: 13px;
+        }
+
+        /* ============================================
+           ANTICHEAT SECTION
+           ============================================ */
+
+        .ac-section {
+            padding: 14px 18px;
+        }
+
+        .ac-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ac-header svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--gray);
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .ac-title {
+            font-family: 'Sora', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .ac-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .ac-stat {
+            font-size: 12px;
+            color: var(--gray);
+        }
+
+        .ac-stat-value {
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        /* ============================================
+           REFRESH BUTTON
+           ============================================ */
+
+        .btn-refresh {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            font-family: 'General Sans', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray);
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .btn-refresh:hover {
+            color: var(--white);
+            border-color: var(--border-light);
+            background: rgba(255,255,255,0.03);
+        }
+
+        .btn-refresh:active {
+            transform: scale(0.97);
+        }
+
+        .btn-refresh svg {
+            width: 13px;
+            height: 13px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.4s ease;
+        }
+
+        .btn-refresh.spinning svg {
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+
+        .footer {
+            text-align: center;
+            padding: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer p {
+            font-size: 13px;
+            color: var(--gray-dark);
+        }
+
+        .footer a {
+            color: var(--gray);
+            transition: color var(--transition);
+        }
+
+        .footer a:hover {
+            color: var(--white);
+        }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .footer-sep {
+            color: var(--gray-dark);
+        }
+
+        /* ============================================
+           MEMORY BAR
+           ============================================ */
+
+        .memory-bar-container {
+            padding: 0 18px 14px;
+        }
+
+        .memory-bar-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .memory-bar-label span {
+            font-size: 11px;
+            color: var(--gray);
+        }
+
+        .memory-bar-label .mem-value {
+            font-weight: 600;
+            color: var(--white);
+        }
+
+        .memory-bar {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .memory-bar-fill {
+            height: 100%;
+            background: var(--white);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat-value {
+                font-size: 22px;
+            }
+
+            .logo-text {
+                font-size: 20px;
+            }
+
+            .content {
+                padding: 60px 0 40px;
+            }
+
+            .ac-stats {
+                flex-direction: column;
+                gap: 6px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 16px 10px;
+            }
+
+            .stat-value {
+                font-size: 20px;
+            }
+
+            .stat-label {
+                font-size: 10px;
+            }
+
+            .container {
+                padding: 0 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="content">
+            <div class="container">
+
+                <!-- Header -->
+                <div class="header">
+                    <div class="logo">
+                        <div class="logo-icon">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <span class="logo-text">TuBlox Servers</span>
+                    </div>
+                    <p class="header-sub">Real-time Game Server Infrastructure</p>
+                </div>
+
+                <!-- Status Banner -->
+                <div class="status-banner">
+                    <div class="status-dot loading" id="statusDot"></div>
+                    <span class="status-text muted" id="statusText">Connecting...</span>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value loading" id="statUptime">—</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value loading" id="statGames">—</div>
+                        <div class="stat-label">Servers</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value loading" id="statConnections">—</div>
+                        <div class="stat-label">Players</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value loading" id="statWS">—</div>
+                        <div class="stat-label">WebSockets</div>
+                    </div>
+                </div>
+
+                <!-- Active Games Card -->
+                <div class="card" id="gamesCard" style="display:none;">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-header-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <rect x="2" y="6" width="20" height="12" rx="2"/>
+                                    <line x1="6" y1="12" x2="6" y2="12"/>
+                                    <line x1="10" y1="12" x2="10" y2="12"/>
+                                    <circle cx="17" cy="10" r="1"/>
+                                    <circle cx="17" cy="14" r="1"/>
+                                </svg>
+                            </div>
+                            <span class="card-title">Active Games</span>
+                        </div>
+                        <span class="game-players" id="totalPlayers" style="display:none;">
+                            <span class="dot"></span>
+                            <span id="totalPlayersCount">0</span> playing
+                        </span>
+                    </div>
+                    <div class="card-body" id="gamesList">
+                    </div>
+                </div>
+
+                <!-- Server Info Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-header-left">
+                            <div class="card-header-icon">
+                                <svg viewBox="0 0 24 24">
+                                    <rect x="2" y="2" width="20" height="8" rx="2"/>
+                                    <rect x="2" y="14" width="20" height="8" rx="2"/>
+                                    <line x1="6" y1="6" x2="6" y2="6"/>
+                                    <line x1="6" y1="18" x2="6" y2="18"/>
+                                </svg>
+                            </div>
+                            <span class="card-title">Server Info</span>
+                        </div>
+                        <button class="btn-refresh" id="refreshBtn" onclick="fetchStatus()">
+                            <svg viewBox="0 0 24 24">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <polyline points="1 20 1 14 7 14"/>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="info-label">
+                                <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                Platform
+                            </span>
+                            <span class="info-value">Render.com</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">
+                                <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                Runtime
+                            </span>
+                            <span class="info-value">Node.js</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">
+                                <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg>
+                                WebSocket
+                            </span>
+                            <span class="info-value online" id="wsStatus">
+                                <span class="dot-sm" id="wsDot"></span>
+                                <span id="wsText">Checking...</span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">
+                                <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                                Database
+                            </span>
+                            <span class="info-value online" id="dbStatus">
+                                <span class="dot-sm" id="dbDot"></span>
+                                <span id="dbText">Checking...</span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">
+                                <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                API
+                            </span>
+                            <span class="info-value muted">/api/health</span>
+                        </div>
+                    </div>
+
+                    <!-- Memory -->
+                    <div class="memory-bar-container" id="memorySection" style="display:none;">
+                        <div class="memory-bar-label">
+                            <span>Memory</span>
+                            <span><span class="mem-value" id="memUsed">—</span> / <span id="memTotal">—</span></span>
+                        </div>
+                        <div class="memory-bar">
+                            <div class="memory-bar-fill" id="memFill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- AntiCheat -->
+                    <div class="ac-section" id="acSection" style="display:none;">
+                        <div class="ac-header">
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            <span class="ac-title">AntiCheat</span>
+                        </div>
+                        <div class="ac-stats" id="acStats"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="container">
+                <p>TuBlox Servers v1.0</p>
+                <div class="footer-links">
+                    <a href="https://tublox.vercel.app" target="_blank">tublox.vercel.app</a>
+                    <span class="footer-sep">·</span>
+                    <span style="color: var(--gray-dark);">Express + WebSocket + MongoDB</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatUptime(seconds) {
+            const d = Math.floor(seconds / 86400);
+            const h = Math.floor((seconds % 86400) / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (d > 0) return d + 'd ' + h + 'h';
+            if (h > 0) return h + 'h ' + m + 'm';
+            return m + 'm ' + s + 's';
+        }
+
+        async function fetchStatus() {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btn = document.getElementById('refreshBtn');
+
+            btn.classList.add('spinning');
+
+            try {
+                dot.className = 'status-dot loading';
+                text.className = 'status-text muted';
+                text.textContent = 'Checking...';
+
+                const res = await fetch('/api/health');
+                const data = await res.json();
+
+                btn.classList.remove('spinning');
+
+                if (data.status === 'ok') {
+                    // Status
+                    dot.className = 'status-dot online';
+                    text.className = 'status-text';
+                    text.textContent = 'All Systems Operational';
+
+                    // Stats
+                    const uptime = document.getElementById('statUptime');
+                    const games = document.getElementById('statGames');
+                    const connections = document.getElementById('statConnections');
+                    const ws = document.getElementById('statWS');
+
+                    uptime.textContent = formatUptime(data.uptime);
+                    uptime.classList.remove('loading');
+                    games.textContent = data.games || 0;
+                    games.classList.remove('loading');
+                    connections.textContent = data.connections || 0;
+                    connections.classList.remove('loading');
+                    ws.textContent = data.wsClients || 0;
+                    ws.classList.remove('loading');
+
+                    // WS Status
+                    document.getElementById('wsDot').className = 'dot-sm';
+                    document.getElementById('wsText').textContent = 'Active';
+
+                    // DB Status
+                    document.getElementById('dbDot').className = 'dot-sm';
+                    document.getElementById('dbText').textContent = 'Connected';
+
+                    // Memory
+                    if (data.memory) {
+                        const memSection = document.getElementById('memorySection');
+                        memSection.style.display = 'block';
+
+                        const usedStr = data.memory.used || '0MB';
+                        const totalStr = data.memory.total || '0MB';
+                        document.getElementById('memUsed').textContent = usedStr;
+                        document.getElementById('memTotal').textContent = totalStr;
+
+                        const usedNum = parseInt(usedStr);
+                        const totalNum = parseInt(totalStr);
+                        const pct = totalNum > 0 ? Math.min(100, Math.round((usedNum / totalNum) * 100)) : 0;
+                        document.getElementById('memFill').style.width = pct + '%';
+                    }
+
+                    // AntiCheat
+                    if (data.antiCheat) {
+                        const ac = document.getElementById('acSection');
+                        ac.style.display = 'block';
+                        document.getElementById('acStats').innerHTML =
+                            '<div class="ac-stat">Tracked: <span class="ac-stat-value">' + (data.antiCheat.players || 0) + '</span></div>' +
+                            '<div class="ac-stat">Banned IPs: <span class="ac-stat-value">' + (data.antiCheat.bannedIPs || 0) + '</span></div>' +
+                            '<div class="ac-stat">Banned Users: <span class="ac-stat-value">' + (data.antiCheat.bannedOdilIds || 0) + '</span></div>';
+                    }
+
+                    // Games
+                    try {
+                        const gamesRes = await fetch('/api/games?limit=12');
+                        const gamesData = await gamesRes.json();
+
+                        if (gamesData.success && gamesData.games && gamesData.games.length > 0) {
+                            const card = document.getElementById('gamesCard');
+                            card.style.display = 'block';
+
+                            const list = document.getElementById('gamesList');
+                            list.innerHTML = '';
+
+                            let totalActive = 0;
+
+                            gamesData.games.forEach(function(g) {
+                                const active = g.activePlayers || 0;
+                                totalActive += active;
+
+                                const item = document.createElement('div');
+                                item.className = 'game-item';
+                                item.innerHTML =
+                                    '<div class="game-item-left">' +
+                                        '<div class="game-icon">' +
+                                            '<svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>' +
+                                        '</div>' +
+                                        '<span class="game-name">' + (g.title || g.id) + '</span>' +
+                                    '</div>' +
+                                    '<span class="game-players">' +
+                                        '<span class="dot' + (active === 0 ? ' idle' : '') + '"></span>' +
+                                        active + ' playing' +
+                                    '</span>';
+                                list.appendChild(item);
+                            });
+
+                            if (totalActive > 0) {
+                                const tp = document.getElementById('totalPlayers');
+                                tp.style.display = 'flex';
+                                document.getElementById('totalPlayersCount').textContent = totalActive;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Games fetch error:', e);
+                    }
+
+                } else {
+                    throw new Error('Bad response');
+                }
+
+            } catch (err) {
+                btn.classList.remove('spinning');
+
+                dot.className = 'status-dot offline';
+                text.className = 'status-text muted';
+                text.textContent = 'Server Offline';
+
+                document.getElementById('wsDot').className = 'dot-sm off';
+                document.getElementById('wsText').textContent = 'Offline';
+                document.getElementById('dbDot').className = 'dot-sm off';
+                document.getElementById('dbText').textContent = 'Unknown';
+
+                console.error('Health check failed:', err);
+            }
+        }
+
+        // Initial fetch
+        fetchStatus();
+
+        // Auto-refresh every 30s
+        setInterval(fetchStatus, 30000);
+    </script>
+</body>
+</html>
